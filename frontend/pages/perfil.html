@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Mi Perfil — VentaXpress</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<nav class="navbar"><div class="nav-inner">
+  <a href="/" class="nav-logo">🛒 Venta<span>Xpress</span></a>
+  <div class="nav-links" id="nav-links"></div>
+</div></nav>
+<div class="breadcrumb"><a href="/">Inicio</a><span class="sep">›</span><span>Mi perfil</span></div>
+
+<div class="dashboard">
+  <h1>👤 Mi perfil</h1>
+  <p class="welcome" id="welcome-msg">Cargando...</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:900px">
+
+    <!-- Datos personales -->
+    <div class="panel">
+      <div class="panel-header"><h2>📋 Datos personales</h2></div>
+      <div class="panel-body">
+        <form id="profile-form">
+          <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" id="p-nombre" required>
+          </div>
+          <div class="form-group">
+            <label>Apellido</label>
+            <input type="text" id="p-apellido" required>
+          </div>
+          <div class="form-group">
+            <label>Correo</label>
+            <input type="email" id="p-correo" disabled style="opacity:.6;cursor:not-allowed">
+          </div>
+          <div class="form-group">
+            <label>Teléfono</label>
+            <input type="tel" id="p-telefono">
+          </div>
+          <div class="form-group">
+            <label>Rol</label>
+            <input type="text" id="p-rol" disabled style="opacity:.6;cursor:not-allowed">
+          </div>
+          <div class="form-group">
+            <label>Miembro desde</label>
+            <input type="text" id="p-desde" disabled style="opacity:.6;cursor:not-allowed">
+          </div>
+          <button type="submit" class="btn-submit" style="margin-top:.5rem">💾 Guardar cambios</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Cambiar contraseña -->
+    <div class="panel">
+      <div class="panel-header"><h2>🔒 Cambiar contraseña</h2></div>
+      <div class="panel-body">
+        <form id="pwd-form">
+          <div class="form-group" id="g-actual">
+            <label>Contraseña actual</label>
+            <input type="password" id="p-actual" required>
+            <div class="error-msg">Contraseña requerida.</div>
+          </div>
+          <div class="form-group" id="g-nueva">
+            <label>Nueva contraseña</label>
+            <input type="password" id="p-nueva" required placeholder="Mínimo 8 caracteres">
+            <div class="error-msg">Mínimo 8 caracteres.</div>
+          </div>
+          <div class="form-group" id="g-confirmar">
+            <label>Confirmar nueva contraseña</label>
+            <input type="password" id="p-confirmar" required>
+            <div class="error-msg">Las contraseñas no coinciden.</div>
+          </div>
+          <button type="submit" class="btn-submit" style="margin-top:.5rem">🔑 Cambiar contraseña</button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer><p>© 2024 <strong>VentaXpress</strong></p></footer>
+<script src="/js/app.js"></script>
+<script>
+  const { Auth, get, put, toast } = window.VX;
+  if (!Auth.loggedIn) location.href = '/pages/login.html?redirect=/pages/perfil.html';
+
+  async function loadProfile() {
+    try {
+      const u = await get('/auth/perfil');
+      document.getElementById('welcome-msg').textContent = `Hola, ${u.nombre} ${u.apellido} 👋`;
+      document.getElementById('p-nombre').value  = u.nombre;
+      document.getElementById('p-apellido').value = u.apellido;
+      document.getElementById('p-correo').value  = u.correo;
+      document.getElementById('p-telefono').value = u.telefono || '';
+      document.getElementById('p-rol').value     = u.rol;
+      document.getElementById('p-desde').value   = new Date(u.creado_en).toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'});
+    } catch(err){ toast(err.message,'error'); }
+  }
+
+  document.getElementById('profile-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      await put('/auth/perfil', {
+        nombre:   document.getElementById('p-nombre').value.trim(),
+        apellido: document.getElementById('p-apellido').value.trim(),
+        telefono: document.getElementById('p-telefono').value.trim()
+      });
+      toast('✅ Perfil actualizado.','success');
+    } catch(err){ toast(err.message,'error'); }
+  });
+
+  document.getElementById('pwd-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const actual    = document.getElementById('p-actual').value;
+    const nueva     = document.getElementById('p-nueva').value;
+    const confirmar = document.getElementById('p-confirmar').value;
+    let ok = true;
+    if (!actual)        { document.getElementById('g-actual').classList.add('has-error'); ok=false; }
+    else                  document.getElementById('g-actual').classList.remove('has-error');
+    if (nueva.length<8) { document.getElementById('g-nueva').classList.add('has-error'); ok=false; }
+    else                  document.getElementById('g-nueva').classList.remove('has-error');
+    if (nueva!==confirmar){ document.getElementById('g-confirmar').classList.add('has-error'); ok=false; }
+    else                  document.getElementById('g-confirmar').classList.remove('has-error');
+    if (!ok) return;
+    try {
+      await put('/auth/cambiar-password', { passwordActual: actual, passwordNueva: nueva });
+      toast('✅ Contraseña actualizada.','success');
+      document.getElementById('pwd-form').reset();
+    } catch(err){ toast(err.message,'error'); }
+  });
+
+  loadProfile();
+</script>
+</body></html>

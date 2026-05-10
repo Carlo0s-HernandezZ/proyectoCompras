@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recuperar contraseña — VentaXpress</title><link rel="stylesheet" href="/css/main.css"></head>
+<body>
+<nav class="navbar"><div class="nav-inner">
+  <a href="/" class="nav-logo">🛒 Venta<span>Xpress</span></a>
+  <div class="nav-links" id="nav-links"></div>
+</div></nav>
+
+<div class="form-page">
+  <div class="form-card">
+    <h1>🔓 Recuperar contraseña</h1>
+    <p class="subtitle">Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
+
+    <div id="success-msg" style="display:none;background:#D1FAE5;color:#065F46;padding:1rem;border-radius:8px;margin-bottom:1rem;font-weight:600"></div>
+    <div id="error-msg"   style="display:none;background:#FEE2E2;color:#991B1B;padding:.75rem;border-radius:8px;margin-bottom:1rem;font-weight:600"></div>
+
+    <form id="rec-form">
+      <div class="form-group" id="g-correo">
+        <label>Correo electrónico</label>
+        <input type="email" id="correo" placeholder="tu@correo.com" required>
+        <div class="error-msg">Ingresa un correo válido.</div>
+      </div>
+      <button type="submit" class="btn-submit" id="btn-sub">Enviar enlace de recuperación</button>
+    </form>
+
+    <div class="form-footer"><a href="/pages/login.html">← Volver al inicio de sesión</a></div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+  const { post } = window.VX;
+  document.getElementById('rec-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const correo = document.getElementById('correo').value.trim();
+    const sucEl  = document.getElementById('success-msg');
+    const errEl  = document.getElementById('error-msg');
+    const btn    = document.getElementById('btn-sub');
+    sucEl.style.display = errEl.style.display = 'none';
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+      document.getElementById('g-correo').classList.add('has-error'); return;
+    }
+    document.getElementById('g-correo').classList.remove('has-error');
+    btn.disabled = true; btn.textContent = '⏳ Enviando...';
+
+    try {
+      const res = await post('/auth/recuperar', { correo });
+      sucEl.textContent = '✅ ' + res.mensaje;
+      sucEl.style.display = 'block';
+      document.getElementById('rec-form').style.display = 'none';
+    } catch(err) {
+      errEl.textContent = err.message; errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Enviar enlace de recuperación';
+    }
+  });
+</script>
+</body></html>

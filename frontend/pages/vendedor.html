@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel Vendedor — VentaXpress</title><link rel="stylesheet" href="/css/main.css"></head>
+<body>
+<nav class="navbar"><div class="nav-inner">
+  <a href="/" class="nav-logo">🛒 Venta<span>Xpress</span></a>
+  <div class="nav-links" id="nav-links"></div>
+</div></nav>
+<div class="breadcrumb"><a href="/">Inicio</a><span class="sep">›</span><span>Panel Vendedor</span></div>
+
+<div class="dashboard">
+  <h1>🏪 Panel de Vendedor</h1>
+  <p class="welcome" id="welcome"></p>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:2px solid var(--border);padding-bottom:.5rem">
+    <button class="tab-btn active" data-tab="productos">📦 Mis productos</button>
+    <button class="tab-btn" data-tab="nuevo">➕ Nuevo producto</button>
+    <button class="tab-btn" data-tab="pedidos">📋 Pedidos</button>
+  </div>
+
+  <!-- Tab: Mis productos -->
+  <div id="tab-productos" class="tab-content">
+    <div class="panel">
+      <div class="panel-header"><h2>Mis productos</h2></div>
+      <div class="panel-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="tbl-productos"><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">⏳ Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Nuevo producto -->
+  <div id="tab-nuevo" class="tab-content" style="display:none">
+    <div class="panel" style="max-width:600px">
+      <div class="panel-header"><h2>➕ Agregar producto</h2></div>
+      <div class="panel-body">
+        <form id="prod-form" enctype="multipart/form-data">
+          <div class="form-group"><label>Nombre *</label><input type="text" id="p-nombre" required></div>
+          <div class="form-group"><label>Descripción</label><textarea id="p-desc" rows="3" style="width:100%;padding:.6rem;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font);resize:vertical"></textarea></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+            <div class="form-group"><label>Precio *</label><input type="number" id="p-precio" min="0" step="0.01" required></div>
+            <div class="form-group"><label>Stock *</label><input type="number" id="p-stock" min="0" required></div>
+          </div>
+          <div class="form-group">
+            <label>Categoría *</label>
+            <select id="p-categoria" required><option value="">Seleccionar...</option></select>
+          </div>
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem">
+              <input type="checkbox" id="p-destacado"> Marcar como producto destacado ⭐
+            </label>
+          </div>
+          <div class="form-group"><label>Imagen del producto</label><input type="file" id="p-imagen" accept="image/*"></div>
+          <button type="submit" class="btn-submit">💾 Guardar producto</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Pedidos -->
+  <div id="tab-pedidos" class="tab-content" style="display:none">
+    <div class="panel">
+      <div class="panel-header"><h2>Pedidos de mis productos</h2></div>
+      <div class="panel-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th><th>Acción</th></tr></thead>
+            <tbody id="tbl-pedidos"><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">⏳ Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer><p>© 2024 <strong>VentaXpress</strong></p></footer>
+<script src="/js/app.js"></script>
+<script>
+  const { Auth, get, post, put, toast, showLoader, hideLoader } = window.VX;
+  if (!Auth.loggedIn || (Auth.rol !== 'vendedor' && Auth.rol !== 'admin'))
+    location.href = '/pages/login.html';
+
+  document.getElementById('welcome').textContent = `Bienvenido/a, ${Auth.usuario?.nombre} 👋`;
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
+    });
+  });
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.style.cssText = 'background:none;border:1px solid var(--border);padding:.45rem 1rem;border-radius:8px 8px 0 0;font-weight:700;font-size:.9rem;color:var(--text-muted);cursor:pointer;transition:all .2s';
+  });
+  document.querySelector('.tab-btn.active').style.cssText += ';background:var(--navy);color:#fff;border-color:var(--navy)';
+
+  // Cargar categorías
+  async function loadCats() {
+    const cats = await get('/productos/categorias');
+    const sel  = document.getElementById('p-categoria');
+    cats.forEach(c => { const o = document.createElement('option'); o.value=c.id; o.textContent=`${c.icono} ${c.nombre}`; sel.appendChild(o); });
+  }
+
+  // Cargar mis productos
+  async function loadProductos() {
+    const tbody = document.getElementById('tbl-productos');
+    try {
+      const prods = await get('/vendedor/productos');
+      tbody.innerHTML = prods.map(p => `
+        <tr>
+          <td><strong>${p.nombre}</strong></td>
+          <td>${p.categoria}</td>
+          <td>$${Number(p.precio).toFixed(2)}</td>
+          <td class="${p.stock<5?'low':''}" style="${p.stock<5?'color:var(--danger);font-weight:700':''}">${p.stock}</td>
+          <td><span class="badge ${p.activo?'badge-active':'badge-inactive'}">${p.activo?'Activo':'Inactivo'}</span></td>
+          <td>
+            <button class="btn-primary btn-sm" onclick="toggleActivo(${p.id},${p.activo})">
+              ${p.activo?'Desactivar':'Activar'}
+            </button>
+          </td>
+        </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Sin productos</td></tr>';
+    } catch(err){ tbody.innerHTML=`<tr><td colspan="6" style="color:var(--danger)">${err.message}</td></tr>`; }
+  }
+
+  async function toggleActivo(id, activo) {
+    try {
+      await put(`/vendedor/productos/${id}`, { activo: activo ? 0 : 1 });
+      toast('Estado actualizado.','success'); loadProductos();
+    } catch(err){ toast(err.message,'error'); }
+  }
+
+  // Cargar pedidos del vendedor
+  async function loadPedidos() {
+    const tbody = document.getElementById('tbl-pedidos');
+    const estados = { pendiente:'badge-pending',confirmado:'badge-confirmed',enviado:'badge-shipped',entregado:'badge-delivered',cancelado:'badge-cancelled' };
+    try {
+      const peds = await get('/pedidos/vendedor');
+      tbody.innerHTML = peds.map(p => `
+        <tr>
+          <td>#${p.id}</td>
+          <td>${p.cliente}</td>
+          <td>$${Number(p.total).toFixed(2)}</td>
+          <td><span class="badge ${estados[p.estado]||''}">${p.estado}</span></td>
+          <td>${new Date(p.creado_en).toLocaleDateString('es-MX')}</td>
+          <td>
+            <select onchange="cambiarEstado(${p.id},this.value)" style="padding:.3rem .5rem;border:1px solid var(--border);border-radius:6px;font-size:.82rem">
+              ${['pendiente','confirmado','enviado','entregado','cancelado'].map(est=>`<option value="${est}" ${p.estado===est?'selected':''}>${est}</option>`).join('')}
+            </select>
+          </td>
+        </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Sin pedidos</td></tr>';
+    } catch(err){ tbody.innerHTML=`<tr><td colspan="6" style="color:var(--danger)">${err.message}</td></tr>`; }
+  }
+
+  async function cambiarEstado(id, estado) {
+    try { await put(`/pedidos/${id}/estado`, { estado }); toast('Estado actualizado.','success'); }
+    catch(err){ toast(err.message,'error'); }
+  }
+
+  // Crear producto
+  document.getElementById('prod-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    showLoader();
+    const formData = new FormData();
+    formData.append('nombre',       document.getElementById('p-nombre').value);
+    formData.append('descripcion',  document.getElementById('p-desc').value);
+    formData.append('precio',       document.getElementById('p-precio').value);
+    formData.append('stock',        document.getElementById('p-stock').value);
+    formData.append('categoria_id', document.getElementById('p-categoria').value);
+    formData.append('destacado',    document.getElementById('p-destacado').checked ? '1' : '0');
+    const img = document.getElementById('p-imagen').files[0];
+    if (img) formData.append('imagen', img);
+
+    try {
+      const headers = {};
+      if (Auth.token) headers['Authorization'] = `Bearer ${Auth.token}`;
+      const res = await fetch('/api/vendedor/productos', { method:'POST', headers, body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast('✅ Producto creado.','success');
+      document.getElementById('prod-form').reset();
+      loadProductos();
+    } catch(err){ toast(err.message,'error'); }
+    finally { hideLoader(); }
+  });
+
+  loadCats(); loadProductos(); loadPedidos();
+</script>
+</body></html>

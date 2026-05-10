@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel Admin — VentaXpress</title><link rel="stylesheet" href="/css/main.css"></head>
+<body>
+<nav class="navbar"><div class="nav-inner">
+  <a href="/" class="nav-logo">🛒 Venta<span>Xpress</span></a>
+  <div class="nav-links" id="nav-links"></div>
+</div></nav>
+<div class="breadcrumb"><a href="/">Inicio</a><span class="sep">›</span><span>Panel Admin</span></div>
+
+<div class="dashboard">
+  <h1>⚙️ Panel de Administración</h1>
+  <p class="welcome" id="welcome"></p>
+
+  <!-- Stats -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card"><div class="stat-icon navy">👥</div><div><div class="stat-value" id="st-usuarios">—</div><div class="stat-label">Usuarios activos</div></div></div>
+    <div class="stat-card"><div class="stat-icon green">📦</div><div><div class="stat-value" id="st-productos">—</div><div class="stat-label">Productos activos</div></div></div>
+    <div class="stat-card"><div class="stat-icon amber">🛒</div><div><div class="stat-value" id="st-pedidos">—</div><div class="stat-label">Pedidos totales</div></div></div>
+    <div class="stat-card"><div class="stat-icon blue">💰</div><div><div class="stat-value" id="st-ingresos">—</div><div class="stat-label">Ingresos totales</div></div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:2px solid var(--border);padding-bottom:.5rem" id="tabs-wrap">
+    <button class="adm-tab active" data-tab="usuarios">👥 Usuarios</button>
+    <button class="adm-tab" data-tab="productos">📦 Productos</button>
+    <button class="adm-tab" data-tab="pedidos">🛒 Pedidos</button>
+  </div>
+
+  <!-- Tab: Usuarios -->
+  <div id="tab-usuarios" class="adm-content">
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Todos los usuarios</h2>
+        <input type="text" id="search-usuarios" placeholder="🔍 Buscar..." style="padding:.4rem .75rem;border:1px solid var(--border);border-radius:8px;font-size:.9rem;width:220px">
+      </div>
+      <div class="panel-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Registro</th><th>Acciones</th></tr></thead>
+            <tbody id="tbl-usuarios"><tr><td colspan="7" style="text-align:center;color:var(--text-muted)">⏳ Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Productos -->
+  <div id="tab-productos" class="adm-content" style="display:none">
+    <div class="panel">
+      <div class="panel-header"><h2>Todos los productos</h2></div>
+      <div class="panel-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Nombre</th><th>Categoría</th><th>Vendedor</th><th>Precio</th><th>Stock</th><th>Estado</th></tr></thead>
+            <tbody id="tbl-productos"><tr><td colspan="7" style="text-align:center;color:var(--text-muted)">⏳ Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Pedidos -->
+  <div id="tab-pedidos" class="adm-content" style="display:none">
+    <div class="panel">
+      <div class="panel-header"><h2>Todos los pedidos</h2></div>
+      <div class="panel-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Cliente</th><th>Correo</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <tbody id="tbl-pedidos"><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">⏳ Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal cambiar rol -->
+<div class="modal-overlay" id="rol-modal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <h3>Cambiar rol</h3>
+      <button class="modal-close" id="rol-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:1rem;color:var(--text-muted)">Selecciona el nuevo rol para <strong id="rol-user-name"></strong>:</p>
+      <div style="display:flex;flex-direction:column;gap:.5rem" id="rol-btns"></div>
+    </div>
+  </div>
+</div>
+
+<footer><p>© 2024 <strong>VentaXpress</strong></p></footer>
+<script src="/js/app.js"></script>
+<script>
+  const { Auth, get, put, toast } = window.VX;
+  if (!Auth.loggedIn || Auth.rol !== 'admin') location.href = '/pages/login.html';
+
+  document.getElementById('welcome').textContent = `Bienvenido/a, ${Auth.usuario?.nombre} ⚙️`;
+
+  // ── Tabs ─────────────────────────────────────────────────
+  const tabBtnStyle = 'background:none;border:1px solid var(--border);padding:.45rem 1rem;border-radius:8px 8px 0 0;font-weight:700;font-size:.9rem;color:var(--text-muted);cursor:pointer;transition:all .2s';
+  const tabActiveSt = 'background:var(--navy);color:#fff;border-color:var(--navy)';
+
+  document.querySelectorAll('.adm-tab').forEach(btn => {
+    btn.style.cssText = tabBtnStyle;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.adm-tab').forEach(b => { b.classList.remove('active'); b.style.cssText = tabBtnStyle; });
+      document.querySelectorAll('.adm-content').forEach(c => c.style.display = 'none');
+      btn.classList.add('active');
+      btn.style.cssText = tabBtnStyle + ';' + tabActiveSt;
+      document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
+    });
+  });
+  document.querySelector('.adm-tab.active').style.cssText = tabBtnStyle + ';' + tabActiveSt;
+
+  // ── Estadísticas ──────────────────────────────────────────
+  async function loadStats() {
+    try {
+      const s = await get('/admin/estadisticas');
+      document.getElementById('st-usuarios').textContent  = s.total_usuarios;
+      document.getElementById('st-productos').textContent = s.total_productos;
+      document.getElementById('st-pedidos').textContent   = s.total_pedidos;
+      document.getElementById('st-ingresos').textContent  = `$${Number(s.ingresos).toLocaleString('es-MX',{minimumFractionDigits:2})}`;
+    } catch {}
+  }
+
+  // ── Usuarios ──────────────────────────────────────────────
+  let allUsers = [];
+  async function loadUsuarios() {
+    const tbody = document.getElementById('tbl-usuarios');
+    try {
+      allUsers = await get('/admin/usuarios');
+      renderUsuarios(allUsers);
+    } catch(err){ tbody.innerHTML=`<tr><td colspan="7" style="color:var(--danger)">${err.message}</td></tr>`; }
+  }
+
+  function renderUsuarios(users) {
+    const tbody = document.getElementById('tbl-usuarios');
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td>${u.id}</td>
+        <td><strong>${u.nombre} ${u.apellido}</strong></td>
+        <td style="font-size:.85rem">${u.correo}</td>
+        <td><span class="badge badge-${u.rol}">${u.rol}</span></td>
+        <td><span class="badge ${u.activo?'badge-active':'badge-inactive'}">${u.activo?'Activo':'Inactivo'}</span></td>
+        <td style="font-size:.82rem">${new Date(u.creado_en).toLocaleDateString('es-MX')}</td>
+        <td>
+          <div style="display:flex;gap:.35rem;flex-wrap:wrap">
+            <button class="btn-primary btn-sm" onclick="openRolModal(${u.id},'${u.nombre} ${u.apellido}','${u.rol}')">Rol</button>
+            <button class="btn-${u.activo?'danger':'success'} btn-sm" onclick="toggleUser(${u.id})">
+              ${u.activo?'Desactivar':'Activar'}
+            </button>
+          </div>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center">Sin usuarios</td></tr>';
+  }
+
+  document.getElementById('search-usuarios').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    renderUsuarios(allUsers.filter(u =>
+      `${u.nombre} ${u.apellido} ${u.correo}`.toLowerCase().includes(q)
+    ));
+  });
+
+  async function toggleUser(id) {
+    try {
+      const res = await put(`/admin/usuarios/${id}/toggle`);
+      toast(res.mensaje, 'success');
+      loadUsuarios(); loadStats();
+    } catch(err){ toast(err.message,'error'); }
+  }
+
+  // Modal cambiar rol
+  function openRolModal(id, nombre, rolActual) {
+    document.getElementById('rol-user-name').textContent = nombre;
+    const btns = document.getElementById('rol-btns');
+    btns.innerHTML = ['cliente','vendedor','admin'].map(r => `
+      <button onclick="cambiarRol(${id},'${r}')"
+        style="padding:.6rem 1rem;border-radius:8px;font-weight:700;font-size:.9rem;cursor:pointer;
+               border:2px solid var(--${r==='cliente'?'border':r==='vendedor'?'green':'navy'});
+               background:${r===rolActual?'var(--navy)':'transparent'};
+               color:${r===rolActual?'#fff':'var(--text)'};
+               transition:all .2s">
+        ${r==='admin'?'⚙️':r==='vendedor'?'🏪':'👤'} ${r.charAt(0).toUpperCase()+r.slice(1)}
+        ${r===rolActual?' ✓':''}
+      </button>`).join('');
+    document.getElementById('rol-modal').classList.add('active');
+  }
+
+  async function cambiarRol(id, rol) {
+    try {
+      await put(`/admin/usuarios/${id}/rol`, { rol });
+      toast(`Rol actualizado a ${rol}.`,'success');
+      document.getElementById('rol-modal').classList.remove('active');
+      loadUsuarios();
+    } catch(err){ toast(err.message,'error'); }
+  }
+
+  document.getElementById('rol-modal-close').addEventListener('click', () =>
+    document.getElementById('rol-modal').classList.remove('active')
+  );
+
+  // ── Productos ─────────────────────────────────────────────
+  async function loadProductos() {
+    const tbody = document.getElementById('tbl-productos');
+    try {
+      const prods = await get('/admin/productos');
+      tbody.innerHTML = prods.map(p => `
+        <tr>
+          <td>${p.id}</td>
+          <td><strong>${p.nombre}</strong></td>
+          <td>${p.categoria}</td>
+          <td style="font-size:.85rem">${p.vendedor}</td>
+          <td>$${Number(p.precio).toFixed(2)}</td>
+          <td style="${p.stock<5?'color:var(--danger);font-weight:700':''}">${p.stock}</td>
+          <td><span class="badge ${p.activo?'badge-active':'badge-inactive'}">${p.activo?'Activo':'Inactivo'}</span></td>
+        </tr>`).join('') || '<tr><td colspan="7" style="text-align:center">Sin productos</td></tr>';
+    } catch(err){ tbody.innerHTML=`<tr><td colspan="7" style="color:var(--danger)">${err.message}</td></tr>`; }
+  }
+
+  // ── Pedidos ───────────────────────────────────────────────
+  async function loadPedidos() {
+    const tbody = document.getElementById('tbl-pedidos');
+    const estados = { pendiente:'badge-pending',confirmado:'badge-confirmed',enviado:'badge-shipped',entregado:'badge-delivered',cancelado:'badge-cancelled' };
+    try {
+      const peds = await get('/admin/pedidos');
+      tbody.innerHTML = peds.map(p => `
+        <tr>
+          <td>#${p.id}</td>
+          <td>${p.cliente}</td>
+          <td style="font-size:.82rem">${p.correo}</td>
+          <td>$${Number(p.total).toFixed(2)}</td>
+          <td><span class="badge ${estados[p.estado]||''}">${p.estado}</span></td>
+          <td style="font-size:.82rem">${new Date(p.creado_en).toLocaleDateString('es-MX')}</td>
+        </tr>`).join('') || '<tr><td colspan="6" style="text-align:center">Sin pedidos</td></tr>';
+    } catch(err){ tbody.innerHTML=`<tr><td colspan="6" style="color:var(--danger)">${err.message}</td></tr>`; }
+  }
+
+  // ── Init ──────────────────────────────────────────────────
+  loadStats(); loadUsuarios(); loadProductos(); loadPedidos();
+</script>
+</body></html>

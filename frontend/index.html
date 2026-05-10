@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VentaXpress — Tienda en Línea</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+<!-- ── NAVBAR ── -->
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">🛒 Venta<span>Xpress</span></a>
+    <form class="nav-search" id="search-form">
+      <input type="text" id="search-input" placeholder="Buscar productos..." autocomplete="off">
+      <button type="submit">🔍</button>
+    </form>
+    <div class="nav-links" id="nav-links"></div>
+  </div>
+</nav>
+
+<!-- ── CARRUSEL ── -->
+<section class="hero">
+  <div class="carousel" id="carousel">
+    <!-- slides se generan con JS -->
+  </div>
+</section>
+
+<!-- ── CATEGORÍAS CHIPS ── -->
+<div class="container" style="padding-bottom:0">
+  <div id="category-chips" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem"></div>
+</div>
+
+<!-- ── CATÁLOGO ── -->
+<div class="container">
+  <div class="layout-sidebar">
+
+    <!-- Sidebar filtros -->
+    <aside class="sidebar">
+      <h3>🔍 Filtrar productos</h3>
+      <div class="filter-group">
+        <label>Categoría</label>
+        <select id="filter-cat">
+          <option value="">Todas las categorías</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Precio</label>
+        <div class="filter-range">
+          <input type="number" id="filter-min" placeholder="Mín" min="0">
+          <span>—</span>
+          <input type="number" id="filter-max" placeholder="Máx" min="0">
+        </div>
+      </div>
+      <button class="btn-filter" id="btn-apply-filter">Aplicar filtros</button>
+      <button class="btn-filter-clear" id="btn-clear-filter">✕ Limpiar filtros</button>
+    </aside>
+
+    <!-- Productos -->
+    <main>
+      <div class="section-header">
+        <h2 id="section-title">Todos los productos</h2>
+        <span class="count" id="products-count"></span>
+      </div>
+      <div class="products-grid" id="products-grid">
+        <p style="color:var(--text-muted)">⏳ Cargando productos...</p>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </main>
+
+  </div>
+</div>
+
+<footer>
+  <p>© 2024 <strong>VentaXpress</strong> — Proyecto académico · Desarrollo Web Profesional</p>
+</footer>
+
+<script src="/js/app.js"></script>
+<script>
+  const { get, toast, openProductModal, Cart } = window.VX;
+
+  let state = { pagina: 1, limite: 12, q: '', categoria: '', minPrecio: '', maxPrecio: '' };
+
+  // ── Leer query string al cargar ──
+  const params = new URLSearchParams(location.search);
+  if (params.get('q'))        state.q         = params.get('q');
+  if (params.get('categoria'))state.categoria  = params.get('categoria');
+
+  // ── Carrusel ─────────────────────────────────────────────
+  let slideIdx = 0;
+  async function loadCarousel() {
+    try {
+      const slides = await get('/productos/destacados');
+      if (!slides.length) {
+        document.querySelector('.hero').style.display = 'none'; return;
+      }
+      const container = document.getElementById('carousel');
+      const colors = ['#0D2B5E','#1A5C2A','#1A4A8A','#0A3D2E','#162040'];
+      container.innerHTML = slides.map((p, i) => `
+        <div class="carousel-slide ${i===0?'active':''}" data-idx="${i}">
+          <div class="slide-bg" style="background:linear-gradient(135deg,${colors[i%colors.length]} 50%,${colors[(i+1)%colors.length]} 100%)"></div>
+          <div class="slide-content">
+            <div class="product-category" style="color:rgba(255,255,255,.7);font-size:.9rem;margin-bottom:.3rem">${p.categoria}</div>
+            <h2>${p.nombre}</h2>
+            <div class="price">$${Number(p.precio).toFixed(2)}</div>
+            <button class="btn-primary" onclick="openProductModal(${p.id})">Ver producto →</button>
+          </div>
+        </div>`).join('') +
+        `<button class="carousel-btn prev" id="c-prev">‹</button>
+         <button class="carousel-btn next" id="c-next">›</button>
+         <div class="carousel-dots">
+           ${slides.map((_,i)=>`<button class="dot ${i===0?'active':''}" data-dot="${i}"></button>`).join('')}
+         </div>`;
+
+      const goTo = idx => {
+        document.querySelectorAll('.carousel-slide').forEach((s,i) => s.classList.toggle('active', i===idx));
+        document.querySelectorAll('.dot').forEach((d,i) => d.classList.toggle('active', i===idx));
+        slideIdx = idx;
+      };
+      document.getElementById('c-prev').addEventListener('click', () =>
+        goTo((slideIdx - 1 + slides.length) % slides.length));
+      document.getElementById('c-next').addEventListener('click', () =>
+        goTo((slideIdx + 1) % slides.length));
+      document.querySelectorAll('.dot').forEach(d =>
+        d.addEventListener('click', () => goTo(Number(d.dataset.dot))));
+
+      setInterval(() => goTo((slideIdx + 1) % slides.length), 4500);
+    } catch { document.querySelector('.hero').style.display = 'none'; }
+  }
+
+  // ── Categorías chips ──────────────────────────────────────
+  async function loadCategoryChips() {
+    try {
+      const cats = await get('/productos/categorias');
+      const wrap = document.getElementById('category-chips');
+      const catSelect = document.getElementById('filter-cat');
+
+      // Chips
+      wrap.innerHTML = `<button class="btn-primary btn-sm ${!state.categoria?'':'btn-success'}"
+        style="border-radius:50px" onclick="setCat('')">Todos</button>` +
+        cats.map(c => `
+          <button class="btn-sm ${state.categoria===c.slug?'btn-primary':'btn-filter-clear'}"
+            style="border-radius:50px;padding:.3rem .8rem"
+            onclick="setCat('${c.slug}')">${c.icono} ${c.nombre}</button>`).join('');
+
+      // Select en sidebar
+      cats.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.slug; o.textContent = `${c.icono} ${c.nombre}`;
+        if (c.slug === state.categoria) o.selected = true;
+        catSelect.appendChild(o);
+      });
+    } catch {}
+  }
+
+  function setCat(slug) {
+    state.categoria = slug; state.pagina = 1;
+    document.getElementById('filter-cat').value = slug;
+    loadProducts();
+    loadCategoryChips();
+  }
+
+  // ── Productos ─────────────────────────────────────────────
+  async function loadProducts() {
+    const grid  = document.getElementById('products-grid');
+    const title = document.getElementById('section-title');
+    const countEl = document.getElementById('products-count');
+    grid.innerHTML = '<p style="color:var(--text-muted)">⏳ Cargando...</p>';
+
+    try {
+      const qs = new URLSearchParams({
+        pagina:   state.pagina,
+        limite:   state.limite,
+        ...(state.q         && { q:         state.q         }),
+        ...(state.categoria && { categoria:  state.categoria }),
+        ...(state.minPrecio && { minPrecio:  state.minPrecio }),
+        ...(state.maxPrecio && { maxPrecio:  state.maxPrecio }),
+      });
+
+      const data = await get(`/productos?${qs}`);
+
+      title.textContent = state.q ? `Resultados para "${state.q}"` : 'Todos los productos';
+      countEl.textContent = `${data.total} producto${data.total!==1?'s':''}`;
+
+      if (!data.productos.length) {
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted)">
+          <div style="font-size:3rem;margin-bottom:1rem">😕</div>
+          <p>No encontramos productos con esos criterios.</p>
+        </div>`;
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+
+      grid.innerHTML = data.productos.map(p => `
+        <article class="product-card" onclick="openProductModal(${p.id})">
+          ${p.destacado ? '<div class="badge-featured">⭐ Destacado</div>' : ''}
+          <div class="product-img">
+            ${p.imagen && p.imagen !== 'producto-default.png'
+              ? `<img src="/img/productos/${p.imagen}" alt="${p.nombre}" loading="lazy" onerror="this.parentElement.textContent='📦'">`
+              : '📦'}
+          </div>
+          <div class="product-body">
+            <div class="product-category">${p.categoria}</div>
+            <div class="product-name">${p.nombre}</div>
+            <div class="product-price">$${Number(p.precio).toFixed(2)}</div>
+            <div class="product-stock ${p.stock<5?'low':''}">
+              ${p.stock>0?`📦 ${p.stock} en stock`:'❌ Agotado'}
+            </div>
+            <button class="btn-add-cart" onclick="event.stopPropagation();addToCart(${p.id})"
+              ${p.stock===0?'disabled':''}>
+              🛒 Agregar
+            </button>
+          </div>
+        </article>`).join('');
+
+      renderPagination(data.total, data.limite);
+    } catch (err) {
+      grid.innerHTML = `<p style="color:var(--danger);padding:1rem">${err.message}</p>`;
+    }
+  }
+
+  // Agregar al carrito desde la tarjeta (sin abrir modal)
+  async function addToCart(id) {
+    try {
+      const p = await get(`/productos/${id}`);
+      Cart.add(p, 1);
+    } catch(err) { toast(err.message, 'error'); }
+  }
+
+  function renderPagination(total, limite) {
+    const pages = Math.ceil(total / limite);
+    const pag   = document.getElementById('pagination');
+    if (pages <= 1) { pag.innerHTML = ''; return; }
+
+    let html = `<button ${state.pagina<=1?'disabled':''} onclick="goPage(${state.pagina-1})">‹</button>`;
+    for (let i = 1; i <= pages; i++) {
+      html += `<button class="${i===state.pagina?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    html += `<button ${state.pagina>=pages?'disabled':''} onclick="goPage(${state.pagina+1})">›</button>`;
+    pag.innerHTML = html;
+  }
+
+  function goPage(p) { state.pagina = p; loadProducts(); window.scrollTo(0,0); }
+
+  // ── Filtros ───────────────────────────────────────────────
+  document.getElementById('btn-apply-filter').addEventListener('click', () => {
+    state.categoria = document.getElementById('filter-cat').value;
+    state.minPrecio = document.getElementById('filter-min').value;
+    state.maxPrecio = document.getElementById('filter-max').value;
+    state.pagina    = 1;
+    loadProducts();
+  });
+  document.getElementById('btn-clear-filter').addEventListener('click', () => {
+    state = { ...state, categoria:'', minPrecio:'', maxPrecio:'', q:'', pagina:1 };
+    document.getElementById('filter-cat').value = '';
+    document.getElementById('filter-min').value = '';
+    document.getElementById('filter-max').value = '';
+    history.replaceState({}, '', '/');
+    loadProducts();
+    loadCategoryChips();
+  });
+
+  // ── Iniciar ───────────────────────────────────────────────
+  loadCarousel();
+  loadCategoryChips();
+  loadProducts();
+</script>
+</body>
+</html>

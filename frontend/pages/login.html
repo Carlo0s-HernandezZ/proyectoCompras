@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iniciar sesión — VentaXpress</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">🛒 Venta<span>Xpress</span></a>
+    <div class="nav-links" id="nav-links"></div>
+  </div>
+</nav>
+
+<div class="breadcrumb">
+  <a href="/">Inicio</a><span class="sep">›</span>
+  <span>Iniciar sesión</span>
+</div>
+
+<div class="form-page">
+  <div class="form-card">
+    <h1>🔐 Iniciar sesión</h1>
+    <p class="subtitle">Ingresa tus credenciales para acceder a tu cuenta.</p>
+
+    <div id="form-error" style="display:none;background:#FEE2E2;color:#991B1B;padding:.75rem 1rem;border-radius:8px;margin-bottom:1rem;font-size:.9rem;font-weight:600"></div>
+
+    <form id="login-form" novalidate>
+      <div class="form-group" id="g-correo">
+        <label>Correo electrónico</label>
+        <input type="email" id="correo" placeholder="tu@correo.com" required autocomplete="email">
+        <div class="error-msg">Ingresa un correo válido.</div>
+      </div>
+
+      <div class="form-group" id="g-password">
+        <label>Contraseña</label>
+        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+        <div class="error-msg">La contraseña es requerida.</div>
+      </div>
+
+      <div style="text-align:right;margin-bottom:1rem">
+        <a href="/pages/recuperar.html" style="font-size:.85rem;color:var(--navy);font-weight:700">
+          ¿Olvidaste tu contraseña?
+        </a>
+      </div>
+
+      <button type="submit" class="btn-submit" id="btn-submit">
+        Iniciar sesión
+      </button>
+    </form>
+
+    <div class="divider"><span>¿No tienes cuenta?</span></div>
+    <div class="form-footer">
+      <a href="/pages/registro.html">Crear cuenta gratis →</a>
+    </div>
+
+    <div class="divider"><span>Cuentas de prueba</span></div>
+    <div style="font-size:.82rem;color:var(--text-muted);background:var(--bg);border-radius:8px;padding:.75rem">
+      <div style="margin-bottom:.3rem">👤 <strong>Cliente:</strong> cliente@ventaxpress.com</div>
+      <div style="margin-bottom:.3rem">🏪 <strong>Vendedor:</strong> vendedor@ventaxpress.com</div>
+      <div style="margin-bottom:.3rem">⚙️ <strong>Admin:</strong> admin@ventaxpress.com</div>
+      <div style="margin-top:.4rem;font-style:italic">Contraseña para todos: <strong>Password123!</strong></div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+  const { Auth, post, toast } = window.VX;
+
+  // Si ya está logueado, redirigir
+  if (Auth.loggedIn) location.href = '/';
+
+  const form    = document.getElementById('login-form');
+  const errBox  = document.getElementById('form-error');
+  const btnSub  = document.getElementById('btn-submit');
+
+  function showError(msg) {
+    errBox.textContent = msg;
+    errBox.style.display = 'block';
+  }
+  function hideError() { errBox.style.display = 'none'; }
+
+  function validate() {
+    let ok = true;
+    const correo   = document.getElementById('correo');
+    const password = document.getElementById('password');
+
+    if (!correo.value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo.value)) {
+      document.getElementById('g-correo').classList.add('has-error'); ok = false;
+    } else {
+      document.getElementById('g-correo').classList.remove('has-error');
+    }
+    if (!password.value) {
+      document.getElementById('g-password').classList.add('has-error'); ok = false;
+    } else {
+      document.getElementById('g-password').classList.remove('has-error');
+    }
+    return ok;
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    hideError();
+    if (!validate()) return;
+
+    btnSub.disabled = true;
+    btnSub.textContent = '⏳ Ingresando...';
+
+    try {
+      const res = await post('/auth/login', {
+        correo:   document.getElementById('correo').value.trim(),
+        password: document.getElementById('password').value
+      });
+      Auth.set(res.token, res.usuario);
+      toast('✅ Bienvenido/a, ' + res.usuario.nombre);
+
+      // Redirigir según rol
+      const redirect = new URLSearchParams(location.search).get('redirect') || '/';
+      setTimeout(() => {
+        if (res.usuario.rol === 'admin')    location.href = '/pages/admin.html';
+        else if (res.usuario.rol === 'vendedor') location.href = '/pages/vendedor.html';
+        else location.href = redirect;
+      }, 600);
+    } catch (err) {
+      showError(err.message);
+      btnSub.disabled = false;
+      btnSub.textContent = 'Iniciar sesión';
+    }
+  });
+</script>
+</body>
+</html>
