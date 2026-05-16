@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-"scripts": {
-  "start": "node index.js",
-  "dev": "nodemon index.js"
-},
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Carlo0s-HernandezZ/proyectoCompras.git"
@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/Carlo0s-HernandezZ/proyectoCompras#readme",
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "isomorphic-dompurify": "^3.12.0"
   }
 }
