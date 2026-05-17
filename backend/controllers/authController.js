@@ -3,6 +3,7 @@ const jwt      = require('jsonwebtoken');
 const crypto   = require('crypto');
 const db       = require('../config/db');
 const mailer   = require('../config/mailer');
+const DOMPurify = require('isomorphic-dompurify'); // Para sanitizar entradas y prevenir XSS
 
 // ── REGISTRO ─────────────────────────────────────────────────
 async function registro(req, res) {

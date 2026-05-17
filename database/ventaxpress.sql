@@ -137,13 +137,13 @@ CREATE TABLE pedido_items (
 -- Contraseñas hasheadas con bcrypt (todas son "Password123!")
 -- Hash generado con bcrypt rounds=10
 
-INSERT INTO usuarios (nombre, apellido, correo, password_hash, rol_id, telefono) VALUES
+/*INSERT INTO usuarios (nombre, apellido, correo, password_hash, rol_id, telefono) VALUES
 ('Admin',    'Sistema',   'admin@ventaxpress.com',
  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 3, '555-0001'),
 ('María',    'González',  'vendedor@ventaxpress.com',
  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 2, '555-0002'),
 ('Carlos',   'Ramírez',   'cliente@ventaxpress.com',
- '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1, '555-0003');
+ '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1, '555-0003');*/
 
 INSERT INTO productos (vendedor_id, categoria_id, nombre, descripcion, precio, stock, destacado) VALUES
 (2, 1, 'Laptop Gaming X1',      'Procesador i7, 16GB RAM, SSD 512GB, pantalla 15.6" FHD',   15999.00, 10, 1),
